@@ -105,9 +105,12 @@ for date in sorted(dates):
         header_rows = get_header_count(file)
 
         # Load the file into a DataFrame
-        file_df = pd.read_csv(file, sep='\t', skiprows=header_rows, header=[0, 1], parse_dates=[0], dtype=str, encoding='cp1252')
+        #file_df = pd.read_csv(file, sep='\t', skiprows=header_rows, header=[0, 1], parse_dates=[0], dtype=str, encoding='cp1252')
+        file_df = pd.read_csv(file, sep='\t', skiprows=header_rows, header=[0, 1], dtype=str, encoding='cp1252')
         file_df.columns = file_df.columns.droplevel(1)
         file_df.rename(columns={'$Timestamp' : 'Timestamp'}, inplace=True)
+
+        file_df['Timestamp'] = pd.to_datetime(file_df['Timestamp'])
 
         # The column for the variable is always the second column
         var_column = file_df.columns[1]

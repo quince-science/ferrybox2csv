@@ -72,8 +72,8 @@ parser.add_argument('input_folder',
 parser.add_argument('output_folder',
     help='Folder for output files')
 
-parser.add_argument('--replacements', nargs=1,
-    help='File containing specification for replacing column values',
+parser.add_argument('--conversion', nargs=1,
+    help='File containing specification for value conversions',
     default=None)
 
 args = parser.parse_args()
@@ -82,10 +82,10 @@ args = parser.parse_args()
 mode = test_files(args.input_folder)
 
 # Load replacements file if applicable
-replacements = None
-if args.replacements is not None:
-    with open(args.replacements[0]) as rin:
-        replacements = json.loads(rin.read())
+conversion = None
+if args.conversion is not None:
+    with open(args.conversion[0]) as rin:
+        conversion = json.loads(rin.read())
 
 # Get the variables and dates of the files
 dates = get_dates(args.input_folder)
@@ -105,7 +105,6 @@ for date in sorted(dates):
         header_rows = get_header_count(file)
 
         # Load the file into a DataFrame
-        #file_df = pd.read_csv(file, sep='\t', skiprows=header_rows, header=[0, 1], parse_dates=[0], dtype=str, encoding='cp1252')
         file_df = pd.read_csv(file, sep='\t', skiprows=header_rows, header=[0, 1], dtype=str, encoding='cp1252')
         file_df.columns = file_df.columns.droplevel(1)
         file_df.rename(columns={'$Timestamp' : 'Timestamp'}, inplace=True)
@@ -139,12 +138,23 @@ for date in sorted(dates):
     var_columns = sorted([c for c in date_df.columns if c not in fixed_columns])
     date_df = date_df[fixed_columns + var_columns]
 
-    # Replace values if required
-    if replacements is not None:
-        for col in replacements.keys():
-            col_replacements = replacements[col]
-            
-            for r in col_replacements.items():
-                date_df[col] = date_df[col].replace(r[0], str(r[1]))
+    # Perform conversions
+    if conversion is not None:
+    
+        # Replace values if required
+        if 'replace' in conversion.keys():
+            replacements = conversion['replace']
+
+            for col in replacements.keys():
+                col_replacements = replacements[col]
+                
+                for r in col_replacements.items():
+                    date_df[col] = date_df[col].replace(r[0], str(r[1]))
+
+        if 'multiply' in conversion.keys():
+            multipliers = conversion['multiply']
+
+            for (col, factor) in multipliers.items():
+                date_df[col] = date_df[col].apply(pd.to_numeric) * factor
 
     date_df.to_csv(f'{args.output_folder}/{date}.csv', date_format='%Y-%m-%dT%H:%M:%SZ', index=False)
